@@ -1,5 +1,7 @@
 # examen
-**Matrícula:** <125053130>
+**Matrícula:** 125053130
+Anamaria González De la hoz
+**TEORÍA**
 Explica la diferencia entre los modos standalone, pseudo-distribuido y totalmente distribuido de Hadoop. ¿En cuál de ellos se usa HDFS?
 Standalone es una computadora sin HDFS.
 Pseudo-distribuido: una computadora hace varios procesos, con HDFS.
