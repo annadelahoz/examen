@@ -36,15 +36,65 @@ with open(f"ventas_{matricula}.csv", "w", newline="") as f:
                     random.choice(pagos)])
 print("Listo")
 
-#######
-import pandas as pedira
-printe("cargando dataset y calculando resultados")
-df = pd.read_csv("ventas_125053130.csv")
-#cambio de formato a datetime
-df["fecha_hora"] = pd.to_datetime(df["fecha_hora"])
-#
-df["ingreso"] = df["cantidad"] * df["precio_unitario"]
-df["mes"] = df["fecha_hora"].dt.month
-resultado = df.groupby(["categoria", "mes"])["ingreso"].sum().reset_index()
-printe("ingreso total por categoria y mes")
-print(resultado.to_string(index=False))
+#######api
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import sqlite3
+import os
+
+app = FastAPI()
+DB_PATH = "resultados.db"
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+class RegistroUpdate(BaseModel):
+    ingreso: float
+
+# GET /resultados -> Todos los registros
+@app.get("/resultados")
+def get_todos():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, categoria, mes, ingreso FROM resultados")
+    filas = cursor.fetchall()
+    conn.close()
+    return [dict(f) for f in filas]
+
+# GET /resultados/<categoria> -> Filtro por clave (categoría)
+@app.get("/resultados/{categoria}")
+def get_por_categoria(categoria: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, categoria, mes, ingreso FROM resultados WHERE LOWER(categoria) = LOWER(?)", (categoria,))
+    filas = cursor.fetchall()
+    conn.close()
+    if not filas:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return [dict(f) for f in filas]
+
+# POST /resultados -> Endpoint de escritura (CRUD)
+@app.post("/resultados")
+def crear_registro(categoria: str, mes: str, ingreso: float):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO resultados (categoria, mes, ingreso) VALUES (?, ?, ?)", (categoria, mes, ingreso))
+    conn.commit()
+    nuevo_id = cursor.lastrowid
+    conn.close()
+    return {"id": nuevo_id, "categoria": categoria, "mes": mes, "ingreso": ingreso}
+
+# DELETE /resultados/<id> -> Endpoint de eliminación (CRUD)
+@app.delete("/resultados/{registro_id}")
+def eliminar_registro(registro_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM resultados WHERE id = ?", (registro_id,))
+    conn.commit()
+    filas_afectadas = cursor.rowcount
+    conn.close()
+    if filas_afectadas == 0:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    return {"mensaje": f"Registro {registro_id} eliminado exitosamente"}

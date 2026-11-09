@@ -1,1 +1,3 @@
+*.csvoutput_mapreduce/
+*.db
 *.csv
